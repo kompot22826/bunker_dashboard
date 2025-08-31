@@ -2,30 +2,42 @@ import streamlit as st
 import pandas as pd
 import os
 
+# Настройки страницы
 st.set_page_config(page_title="Бункер — Панель игроков", layout="wide")
 st.title("🎲 Бункер — Панель игроков")
 
-# 📁 Файл, в который сохраняются игроки
+# Пути к файлам
 DATA_FILE = "players.csv"
+CATASTROPHE_FILE = "catastrophe.txt"
+BUNKER_FILE = "bunker.txt"
 
-# 📄 Структура таблицы
+# Колонки таблицы
 columns = [
     "Имя", "Профессия", "Пол / Возраст",
     "Здоровье", "Хобби", "Багаж", "Фобия", "Факт"
 ]
 
-# 📥 Загрузка данных из файла
+# Функции загрузки/сохранения данных
 def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     else:
         return pd.DataFrame(columns=columns)
 
-# 💾 Сохранение данных в файл
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
-# 🔑 Роль пользователя
+def load_text(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
+
+def save_text(file_path, text):
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+# Выбор роли
 role = st.sidebar.selectbox("Выберите роль", ["Игрок", "Ведущий"])
 
 if role == "Ведущий":
@@ -38,13 +50,14 @@ if role == "Ведущий":
 else:
     st.sidebar.info("Вы просматриваете как Игрок (только просмотр).")
 
-# 🎨 Темная тема
+# Темная тема
 st.markdown("""
     <style>
         body { background-color: #0e1117; color: #fafafa; }
         .stApp { background-color: #0e1117; }
         .stTextInput>div>div>input,
-        .stNumberInput>div>input {
+        .stNumberInput>div>input,
+        .stTextArea textarea {
             background-color: #1e1e1e;
             color: white;
         }
@@ -55,12 +68,30 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 📦 Загружаем или инициализируем данные
+# Инициализация состояния
 if "players_df" not in st.session_state:
     st.session_state.players_df = load_data()
 
-# ➕ Добавление нового игрока
+if "catastrophe_text" not in st.session_state:
+    st.session_state.catastrophe_text = load_text(CATASTROPHE_FILE)
+
+if "bunker_text" not in st.session_state:
+    st.session_state.bunker_text = load_text(BUNKER_FILE)
+
+# ========== БЛОК ДЛЯ ВЕДУЩЕГО ==========
 if role == "Ведущий":
+    st.subheader("🌍 Катастрофа")
+    new_catastrophe = st.text_area("Опиши катастрофу", st.session_state.catastrophe_text, height=100)
+    if new_catastrophe != st.session_state.catastrophe_text:
+        st.session_state.catastrophe_text = new_catastrophe
+        save_text(CATASTROPHE_FILE, new_catastrophe)
+
+    st.subheader("🏚️ Бункер")
+    new_bunker = st.text_area("Опиши бункер", st.session_state.bunker_text, height=100)
+    if new_bunker != st.session_state.bunker_text:
+        st.session_state.bunker_text = new_bunker
+        save_text(BUNKER_FILE, new_bunker)
+
     with st.expander("➕ Добавить нового игрока"):
         with st.form("add_player_form"):
             name_input = st.text_input("Введите имя игрока")
@@ -77,13 +108,9 @@ if role == "Ведущий":
                     save_data(st.session_state.players_df)
                     st.success(f"Игрок {name} добавлен!")
 
-# 📋 Таблица игроков
-st.subheader("📋 Таблица игроков")
-
-if role == "Ведущий":
+    st.subheader("📋 Таблица игроков")
     st.info("Редактируйте характеристики игроков прямо в таблице:")
 
-    # 📝 Редактируемая таблица
     edited_df = st.data_editor(
         st.session_state.players_df,
         num_rows="fixed",
@@ -94,9 +121,7 @@ if role == "Ведущий":
         save_data(st.session_state.players_df)
 
     st.write("---")
-
-    # ❌ Удаление игроков
-    st.subheader("🗑️ Выберите игроков для удаления")
+    st.subheader("🗑️ Удаление игроков")
     to_delete = []
     for idx, name in enumerate(st.session_state.players_df["Имя"]):
         checked = st.checkbox(f"{name}", key=f"del_{idx}")
@@ -113,12 +138,21 @@ if role == "Ведущий":
         else:
             st.warning("Выберите хотя бы одного игрока для удаления.")
 
-    # 🧹 Очистка всей таблицы
     if st.button("🗑️ Очистить таблицу полностью"):
         st.session_state.players_df = pd.DataFrame(columns=columns)
         save_data(st.session_state.players_df)
         st.success("Таблица очищена.")
 
+# ========== БЛОК ДЛЯ ИГРОКА ==========
 else:
-    # 👀 Только просмотр для игроков
-    st.dataframe(st.session_state.players_df, use_container_width=True)
+    st.subheader("🌍 Катастрофа")
+    st.markdown(load_text(CATASTROPHE_FILE))
+
+    st.subheader("🏚️ Бункер")
+    st.markdown(load_text(BUNKER_FILE))
+
+    st.subheader("📋 Таблица игроков")
+    st.dataframe(load_data(), use_container_width=True)
+
+    # 🔁 Автообновление каждые 5 секунд
+    st.markdown("<meta http-equiv='refresh' content='5'>", unsafe_allow_html=True)
