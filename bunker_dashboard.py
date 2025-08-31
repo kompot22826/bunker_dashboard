@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+from streamlit_extras.st_autorefresh import st_autorefresh
 
 # Настройки страницы
 st.set_page_config(page_title="Бункер — Панель игроков", layout="wide")
@@ -145,6 +146,9 @@ if role == "Ведущий":
 
 # ========== БЛОК ДЛЯ ИГРОКА ==========
 else:
+    # Автообновление каждые 10 секунд, обновляет только часть страницы без полной перезагрузки
+    st_autorefresh(interval=10000, key="data_refresh")
+
     st.subheader("🌍 Катастрофа")
     st.markdown(load_text(CATASTROPHE_FILE))
 
@@ -153,6 +157,3 @@ else:
 
     st.subheader("📋 Таблица игроков")
     st.dataframe(load_data(), use_container_width=True)
-
-    # 🔁 Автообновление каждые 5 секунд
-    st.markdown("<meta http-equiv='refresh' content='5'>", unsafe_allow_html=True)
