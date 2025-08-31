@@ -157,4 +157,3 @@ else:
 
     st.subheader("📋 Таблица игроков")
     st.dataframe(load_data(), use_container_width=True)
-
